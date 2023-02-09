@@ -4,13 +4,19 @@ from typing import List
 from urllib.parse import quote
 
 import requests
+import pyalex
 from pyalex import Works, Work
 from pydantic import BaseModel
 from rich.console import Console
+from wikibaseintegrator import WikibaseIntegrator
+from wikibaseintegrator.wbi_config import config
 
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 console = Console()
+instance_of = "P31"
+retracted_item = "Q45182324" # see https://www.wikidata.org/wiki/Q45182324
+pyalex.config.email = "priskorn@riseup.net"
 
 class Hub(BaseModel):
     doi: str
@@ -32,7 +38,7 @@ class Hub(BaseModel):
             self.found_in_wikidata = False
         else:
             logger.error(f"Got {response.status_code} from Hub")
-            console.print(response.json())
+            # console.print(response.json())
             exit()
 
 
@@ -60,14 +66,35 @@ class Hub(BaseModel):
 if __name__ == '__main__':
     # lookup all retracted papers in OA
     results: List[Work]
-    results, meta = Works().filter(is_retracted=True, has_doi=True).get(return_meta=True)
-    for result in results:
-        doi = result["doi"]
-        logger.info(f"Working on {doi}")
-        # lookup QID
-        hub = Hub(doi=doi)
-        hub.lookup_doi()
-        console.print(hub.dict())
-        exit()
+    # we want all the ~12k results
+    pager = Works().filter(is_retracted=True, has_doi=True).paginate(per_page=2, n_max=None)
+    for page in pager:
+        # console.print(page)
+        for result in page:
+            # remove the scheme
+            doi = result["doi"].replace("https://doi.org/", "")
+            logger.info(f"Working on {doi}")
+            # lookup QID
+            hub = Hub(doi=doi)
+            hub.lookup_doi()
+            console.print(hub.dict())
+            if hub.found_in_wikidata:
+                user_agent = "wikidata-retracted-papers"
+                config["user_agent"] = user_agent
+                wbi = WikibaseIntegrator()
+                paper = wbi.item.get(entity_id=hub.qid.replace("https://www.wikidata.org/wiki/", ""))
+                instance_of_claims = paper.claims.get(property=instance_of)
+                # console.print(instance_of_claims)
+                correctly_marked_as_retracted = False
+                for claim in instance_of_claims:
+                    # console.print(claim)
+                    datavalue = claim.mainsnak.datavalue
+                    # console.print(datavalue)
+                    if datavalue == retracted_item:
+                        correctly_marked_as_retracted = True
+                        print("This paper is correctly marked as retracted in Wikidata")
+                if not correctly_marked_as_retracted:
+                    print(f"This paper is retracted but is missing P31:{retracted_item} in Wikidata, see {hub.qid}")
+                # exit()
 
 # See PyCharm help at https://www.jetbrains.com/help/pycharm/
