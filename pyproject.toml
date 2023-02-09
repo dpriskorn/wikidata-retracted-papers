@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "wikidata-retracted-papers"
+version = "0.1.0"
+description = "Tool to check retracted papers in Wikidata"
+authors = ["Dennis Priskorn <priskorn@riseup.net>"]
+license = "GPLv3+"
+readme = "README.md"
+packages = [{include = "wikidata_retracted_papers"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pyalex = "^0.7"
+pydantic = "^1.10.4"
+requests = "^2.28.2"
+rich = "^13.3.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
