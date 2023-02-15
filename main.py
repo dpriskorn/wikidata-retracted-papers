@@ -64,6 +64,9 @@ class Hub(BaseModel):
 
 # Press the green button in the gutter to run the script.
 if __name__ == '__main__':
+    user_agent = "wikidata-retracted-papers"
+    config["USER_AGENT"] = user_agent
+    wbi = WikibaseIntegrator()
     # lookup all retracted papers in OA
     results: List[Work]
     # we want all the ~12k results
@@ -79,9 +82,6 @@ if __name__ == '__main__':
             hub.lookup_doi()
             console.print(hub.dict())
             if hub.found_in_wikidata:
-                user_agent = "wikidata-retracted-papers"
-                config["user_agent"] = user_agent
-                wbi = WikibaseIntegrator()
                 paper = wbi.item.get(entity_id=hub.qid.replace("https://www.wikidata.org/wiki/", ""))
                 instance_of_claims = paper.claims.get(property=instance_of)
                 # console.print(instance_of_claims)
@@ -93,6 +93,7 @@ if __name__ == '__main__':
                     if datavalue == retracted_item:
                         correctly_marked_as_retracted = True
                         print("This paper is correctly marked as retracted in Wikidata")
+                        exit()
                 if not correctly_marked_as_retracted:
                     print(f"This paper is retracted but is missing P31:{retracted_item} in Wikidata, see {hub.qid}")
                 # exit()
